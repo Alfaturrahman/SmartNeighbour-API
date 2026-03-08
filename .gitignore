@@ -44,6 +44,8 @@ htmlcov/
 # Database
 *.db
 *.sqlite
+data_backup.json
+*_backup.json
 
 # OS
 Thumbs.db
