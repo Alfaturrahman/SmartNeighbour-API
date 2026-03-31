@@ -5,11 +5,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from django.db import models as db_models
-from .models import User, Resident, Feedback, Announcement, SecuritySchedule
+from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule
 from .serializers import (
-    UserSerializer, LoginSerializer, ResidentSerializer,
+    UserSerializer, RWSerializer, RTSerializer, LoginSerializer, ResidentSerializer,
     FeedbackSerializer, FeedbackReplySerializer,
-    AnnouncementSerializer, SecurityScheduleSerializer
+    AnnouncementSerializer, SecurityScheduleSerializer, RTCreateSerializer, ResidentCreateSerializer
 )
 
 @api_view(['POST'])
@@ -257,15 +257,144 @@ class UserViewSet(viewsets.ModelViewSet):
         total = User.objects.count()
         active = User.objects.filter(is_active=True).count()
         by_role = {
-            'admin': User.objects.filter(role='admin').count(),
-            'security': User.objects.filter(role='security').count(),
-            'resident': User.objects.filter(role='resident').count(),
+            'rw': User.objects.filter(role='rw').count(),
+            'rt': User.objects.filter(role='rt').count(),
+            'warga': User.objects.filter(role='warga').count(),
         }
         return Response({
             'total': total,
             'active': active,
             'by_role': by_role
         })
+
+
+class RWViewSet(viewsets.ModelViewSet):
+    queryset = RW.objects.all()
+    serializer_class = RWSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'rw':
+            # RW can only see their own profile
+            try:
+                return RW.objects.filter(user=user)
+            except RW.DoesNotExist:
+                return RW.objects.none()
+        elif user.role == 'rt':
+            # RT can see their RW
+            try:
+                rt = user.rt_profile
+                return RW.objects.filter(id=rt.rw.id)
+            except (RT.DoesNotExist, AttributeError):
+                return RW.objects.none()
+        return RW.objects.none()
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def create_rt(self, request):
+        """Endpoint untuk RW membuat akun RT baru"""
+        # Verify user is RW
+        if request.user.role != 'rw':
+            return Response(
+                {'error': 'Hanya RW yang dapat membuat akun RT'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            rw = request.user.rw_profile
+        except RW.DoesNotExist:
+            return Response(
+                {'error': 'RW profile tidak ditemukan'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = RTCreateSerializer(
+            data=request.data,
+            context={'rw': rw, 'request': request}
+        )
+        
+        if serializer.is_valid():
+            rt = serializer.save()
+            generated_password = serializer.context.get('generated_password')
+            
+            return Response({
+                'success': True,
+                'message': 'RT berhasil dibuat',
+                'data': {
+                    'rt_id': rt.id,
+                    'rt_name': rt.name,
+                    'user_email': rt.user.email,
+                    'generated_password': generated_password,
+                    'note': 'Berikan email dan password ini ke RT untuk login'
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RTViewSet(viewsets.ModelViewSet):
+    queryset = RT.objects.all()
+    serializer_class = RTSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'rw':
+            # RW can see all RT under them
+            try:
+                rw = user.rw_profile
+                return RT.objects.filter(rw=rw)
+            except RW.DoesNotExist:
+                return RT.objects.none()
+        elif user.role == 'rt':
+            # RT can only see their own profile
+            try:
+                rt = user.rt_profile
+                return RT.objects.filter(id=rt.id)
+            except RT.DoesNotExist:
+                return RT.objects.none()
+        return RT.objects.none()
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def create_resident(self, request):
+        """Endpoint untuk RT membuat akun Warga baru"""
+        # Verify user is RT
+        if request.user.role != 'rt':
+            return Response(
+                {'error': 'Hanya RT yang dapat membuat akun Warga'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            rt = request.user.rt_profile
+        except RT.DoesNotExist:
+            return Response(
+                {'error': 'RT profile tidak ditemukan'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = ResidentCreateSerializer(
+            data=request.data,
+            context={'rt': rt, 'request': request}
+        )
+        
+        if serializer.is_valid():
+            resident = serializer.save()
+            generated_password = serializer.context.get('generated_password')
+            
+            return Response({
+                'success': True,
+                'message': 'Warga berhasil didaftarkan',
+                'data': {
+                    'resident_id': resident.id,
+                    'resident_name': resident.name,
+                    'user_email': resident.user.email,
+                    'generated_password': generated_password,
+                    'note': 'Berikan email dan password ini ke Warga untuk login'
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ResidentViewSet(viewsets.ModelViewSet):
@@ -275,9 +404,39 @@ class ResidentViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = Resident.objects.all()
+        user = self.request.user
+        
+        # Data scoping based on user role
+        if user.role == 'rw':
+            # RW sees all residents under all their RTs
+            try:
+                rw = user.rw_profile
+                rt_ids = RT.objects.filter(rw=rw).values_list('id', flat=True)
+                queryset = queryset.filter(rt_id__in=rt_ids)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'rt':
+            # RT only sees their own residents
+            try:
+                rt = user.rt_profile
+                queryset = queryset.filter(rt=rt)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'warga':
+            # Warga only sees themselves
+            try:
+                resident = user.resident_profile
+                queryset = queryset.filter(id=resident.id)
+            except Resident.DoesNotExist:
+                queryset = queryset.none()
+        else:
+            queryset = queryset.none()
+        
+        # Apply filters
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
+            
         return queryset.order_by('-created_at')
     
     @action(detail=False, methods=['get'])
@@ -298,7 +457,32 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return Feedback.objects.all().order_by('-created_at')
+        user = self.request.user
+        queryset = Feedback.objects.all()
+        
+        # Data scoping based on user role
+        if user.role == 'warga':
+            # Warga only sees their own feedback
+            queryset = queryset.filter(user=user)
+        elif user.role == 'rt':
+            # RT sees feedback from their residents
+            try:
+                rt = user.rt_profile
+                queryset = queryset.filter(rt=rt)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'rw':
+            # RW sees all feedback from their RTs
+            try:
+                rw = user.rw_profile
+                rt_ids = RT.objects.filter(rw=rw).values_list('id', flat=True)
+                queryset = queryset.filter(rt_id__in=rt_ids)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        else:
+            queryset = queryset.none()
+        
+        return queryset.order_by('-created_at')
     
     @action(detail=True, methods=['post'])
     def reply(self, request, pk=None):
@@ -334,10 +518,41 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        user = self.request.user
         queryset = Announcement.objects.all()
+        
+        # Data scoping based on user role
+        if user.role == 'warga':
+            # Warga sees announcements from their RT
+            try:
+                resident = user.resident_profile
+                queryset = queryset.filter(rt=resident.rt)
+            except Resident.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'rt':
+            # RT sees announcements for their area
+            try:
+                rt = user.rt_profile
+                # See their own announcements and RW announcements for their RW
+                queryset = queryset.filter(rt=rt)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'rw':
+            # RW sees all announcements from their RTs
+            try:
+                rw = user.rw_profile
+                rt_ids = RT.objects.filter(rw=rw).values_list('id', flat=True)
+                queryset = queryset.filter(rt_id__in=rt_ids)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        else:
+            queryset = queryset.none()
+        
+        # Apply priority filter
         priority = self.request.query_params.get('priority', None)
         if priority:
             queryset = queryset.filter(priority=priority)
+            
         return queryset.order_by('-created_at')
     
     @action(detail=False, methods=['get'])
@@ -360,7 +575,36 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        user = self.request.user
         queryset = SecuritySchedule.objects.all()
+        
+        # Data scoping based on user role
+        if user.role == 'warga':
+            # Warga sees schedules from their RT's RW
+            try:
+                resident = user.resident_profile
+                rw = resident.rt.rw
+                queryset = queryset.filter(rw=rw)
+            except (Resident.DoesNotExist, AttributeError):
+                queryset = queryset.none()
+        elif user.role == 'rt':
+            # RT sees schedules from their RW
+            try:
+                rt = user.rt_profile
+                queryset = queryset.filter(rw=rt.rw)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        elif user.role == 'rw':
+            # RW sees only their own schedules
+            try:
+                rw = user.rw_profile
+                queryset = queryset.filter(rw=rw)
+            except RT.DoesNotExist:
+                queryset = queryset.none()
+        else:
+            queryset = queryset.none()
+        
+        # Apply filters
         shift = self.request.query_params.get('shift', None)
         date = self.request.query_params.get('date', None)
         

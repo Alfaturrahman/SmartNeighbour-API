@@ -4,57 +4,98 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'smartneighbour_api.settings')
 django.setup()
 
-from core.models import User
+from core.models import User, RW, RT, Resident
 
-# Create admin user
+# Create RW user
 try:
-    user = User.objects.get(email='admin@test.com')
-    print(f'User already exists: {user.email}')
+    rw_user = User.objects.get(email='rw@test.com')
+    print(f'User already exists: {rw_user.email}')
 except User.DoesNotExist:
-    user = User(
-        email='admin@test.com',
-        name='Admin Test',
-        role='admin',
+    rw_user = User(
+        email='rw@test.com',
+        name='RW Test',
+        role='rw',
         is_active=True
     )
-    user.set_password('admin123')
-    user.save()
-    print(f'✓ Admin user created: {user.email}')
-    print(f'  Password: admin123')
-    print(f'  Role: {user.role}')
+    rw_user.set_password('rw123')
+    rw_user.save()
+    
+    # Create RW profile
+    rw_profile = RW(
+        name='RW Test',
+        user=rw_user,
+        area='Area Test',
+        phone='085123456789'
+    )
+    rw_profile.save()
+    
+    print(f'✓ RW user created: {rw_user.email}')
+    print(f'  Password: rw123')
+    print(f'  Role: {rw_user.role}')
 
-# Create security user
+# Create RT user
 try:
-    sec_user = User.objects.get(email='security@test.com')
-    print(f'User already exists: {sec_user.email}')
+    rt_user = User.objects.get(email='rt@test.com')
+    print(f'User already exists: {rt_user.email}')
 except User.DoesNotExist:
-    sec_user = User(
-        email='security@test.com',
-        name='Security Test',
-        role='security',
+    # Get RW first
+    rw = RW.objects.first()
+    if rw:
+        rt_user = User(
+            email='rt@test.com',
+            name='RT Test',
+            role='rt',
+            is_active=True
+        )
+        rt_user.set_password('rt123')
+        rt_user.save()
+        
+        # Create RT profile
+        rt_profile = RT(
+            name='RT Test',
+            user=rt_user,
+            rw=rw,
+            area='Area Test - RT',
+            phone='085987654321'
+        )
+        rt_profile.save()
+        
+        print(f'✓ RT user created: {rt_user.email}')
+        print(f'  Password: rt123')
+        print(f'  Role: {rt_user.role}')
+    else:
+        print('⚠️  No RW found. Create RW first!')
+
+# Create warga user
+try:
+    warga_user = User.objects.get(email='warga@test.com')
+    print(f'User already exists: {warga_user.email}')
+except User.DoesNotExist:
+    warga_user = User(
+        email='warga@test.com',
+        name='Warga Test',
+        role='warga',
         is_active=True
     )
-    sec_user.set_password('security123')
-    sec_user.save()
-    print(f'✓ Security user created: {sec_user.email}')
-    print(f'  Password: security123')
-    print(f'  Role: {sec_user.role}')
-
-# Create resident user
-try:
-    res_user = User.objects.get(email='resident@test.com')
-    print(f'User already exists: {res_user.email}')
-except User.DoesNotExist:
-    res_user = User(
-        email='resident@test.com',
-        name='Resident Test',
-        role='resident',
-        is_active=True
-    )
-    res_user.set_password('resident123')
-    res_user.save()
-    print(f'✓ Resident user created: {res_user.email}')
-    print(f'  Password: resident123')
-    print(f'  Role: {res_user.role}')
+    warga_user.set_password('warga123')
+    warga_user.save()
+    
+    # Create resident profile (optional)
+    rt = RT.objects.first()
+    if rt:
+        resident = Resident(
+            name='Warga Test',
+            email='warga@test.com',
+            phone='082123456789',
+            address='Jalan Test No. 1',
+            user=warga_user,
+            rt=rt,
+            status='aktif'
+        )
+        resident.save()
+    
+    print(f'✓ Warga user created: {warga_user.email}')
+    print(f'  Password: warga123')
+    print(f'  Role: {warga_user.role}')
 
 print('\n✓ All test users created successfully!')

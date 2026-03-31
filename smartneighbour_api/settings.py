@@ -79,15 +79,11 @@ if DATABASE_URL:
         )
     }
 else:
-    # Local development fallback
+    # Local development fallback - use SQLite for development
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'smartneighbour_db'),
-            'USER': os.getenv('DB_USER', 'smartneighbour_user'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'smartneighbour2026!'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
         }
     }
 

@@ -5,6 +5,8 @@ from . import plain_views
 
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet)
+router.register(r'rw', views.RWViewSet)
+router.register(r'rt', views.RTViewSet)
 router.register(r'residents', views.ResidentViewSet)
 router.register(r'feedbacks', views.FeedbackViewSet)
 router.register(r'announcements', views.AnnouncementViewSet)

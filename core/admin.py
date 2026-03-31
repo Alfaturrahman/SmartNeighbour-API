@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Resident, Feedback, Announcement, SecuritySchedule
+from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule
 
 
 @admin.register(User)
@@ -32,17 +32,55 @@ class UserAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+@admin.register(RW)
+class RWAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'user', 'area', 'phone', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['name', 'user__email', 'area', 'phone']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Informasi RW', {
+            'fields': ('name', 'user', 'area', 'phone', 'address')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(RT)
+class RTAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'user', 'rw', 'area', 'phone', 'created_at']
+    list_filter = ['rw', 'created_at']
+    search_fields = ['name', 'user__email', 'rw__name', 'area', 'phone']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Informasi RT', {
+            'fields': ('name', 'user', 'rw', 'area', 'phone', 'address')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 @admin.register(Resident)
 class ResidentAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'email', 'phone', 'status', 'created_at']
-    list_filter = ['status', 'created_at']
+    list_display = ['id', 'name', 'email', 'phone', 'rt', 'status', 'created_at']
+    list_filter = ['status', 'rt', 'created_at']
     search_fields = ['name', 'email', 'phone', 'address']
     readonly_fields = ['created_at', 'updated_at']
     ordering = ['-created_at']
     
     fieldsets = (
         ('Informasi Warga', {
-            'fields': ('name', 'email', 'phone', 'address', 'status')
+            'fields': ('name', 'email', 'phone', 'address', 'rt', 'user', 'status')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -53,15 +91,15 @@ class ResidentAdmin(admin.ModelAdmin):
 
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
-    list_display = ['id', 'title', 'author', 'rating', 'date', 'has_reply', 'created_at']
-    list_filter = ['rating', 'date', 'created_at']
+    list_display = ['id', 'title', 'author', 'rating', 'rt', 'date', 'has_reply', 'created_at']
+    list_filter = ['rating', 'rt', 'date', 'created_at']
     search_fields = ['title', 'author', 'content']
     readonly_fields = ['date', 'created_at', 'updated_at', 'replied_at']
     ordering = ['-created_at']
     
     fieldsets = (
         ('Informasi Feedback', {
-            'fields': ('user', 'author', 'title', 'content', 'rating', 'date')
+            'fields': ('user', 'rt', 'author', 'title', 'content', 'rating', 'date')
         }),
         ('Balasan', {
             'fields': ('reply', 'replied_by', 'replied_at'),
@@ -81,15 +119,15 @@ class FeedbackAdmin(admin.ModelAdmin):
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ['id', 'title', 'author', 'priority', 'date', 'created_at']
-    list_filter = ['priority', 'date', 'created_at']
+    list_display = ['id', 'title', 'author', 'rt', 'priority', 'date', 'created_at']
+    list_filter = ['priority', 'rt', 'date', 'created_at']
     search_fields = ['title', 'author', 'content']
     readonly_fields = ['date', 'created_at', 'updated_at']
     ordering = ['-created_at']
     
     fieldsets = (
         ('Informasi Pengumuman', {
-            'fields': ('user', 'title', 'content', 'author', 'priority', 'date')
+            'fields': ('user', 'rt', 'title', 'content', 'author', 'priority', 'date')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -100,15 +138,15 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(SecuritySchedule)
 class SecurityScheduleAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'shift', 'date', 'time', 'status', 'created_at']
-    list_filter = ['shift', 'status', 'date', 'created_at']
+    list_display = ['id', 'name', 'rw', 'shift', 'date', 'time', 'status', 'created_at']
+    list_filter = ['shift', 'rw', 'status', 'date', 'created_at']
     search_fields = ['name', 'notes']
     readonly_fields = ['created_at', 'updated_at']
     ordering = ['date', 'shift']
     
     fieldsets = (
         ('Informasi Jadwal', {
-            'fields': ('user', 'name', 'shift', 'date', 'time', 'status')
+            'fields': ('user', 'rw', 'name', 'shift', 'date', 'time', 'status')
         }),
         ('Catatan', {
             'fields': ('notes',),
