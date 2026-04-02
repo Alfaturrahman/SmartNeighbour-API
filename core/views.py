@@ -1,15 +1,15 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from django.db import models as db_models
-from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule
+from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule, SecurityPersonnel
 from .serializers import (
     UserSerializer, RWSerializer, RTSerializer, LoginSerializer, ResidentSerializer,
     FeedbackSerializer, FeedbackReplySerializer,
-    AnnouncementSerializer, SecurityScheduleSerializer, RTCreateSerializer, ResidentCreateSerializer
+    AnnouncementSerializer, SecurityScheduleSerializer, SecurityPersonnelSerializer, RTCreateSerializer, ResidentCreateSerializer
 )
 
 @api_view(['POST'])
@@ -331,6 +331,54 @@ class RWViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reset_password(self, request, pk=None):
+        """Reset RT password - RW endpoint to generate new password for RT"""
+        # Verify user is RW
+        if request.user.role != 'rw':
+            return Response(
+                {'error': 'Hanya RW yang dapat reset password RT'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            rw = request.user.rw_profile
+        except RW.DoesNotExist:
+            return Response(
+                {'error': 'RW profile tidak ditemukan'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            rt = RT.objects.get(id=pk, rw=rw)
+        except RT.DoesNotExist:
+            return Response(
+                {'error': 'RT tidak ditemukan atau bukan milik RW ini'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate new password
+        import string
+        import random
+        chars = string.ascii_letters + string.digits + '!@#$%^&*'
+        new_password = ''.join(random.choice(chars) for _ in range(8))
+        
+        # Set new password to user
+        rt.user.set_password(new_password)
+        rt.user.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Password RT berhasil direset',
+            'data': {
+                'rt_id': rt.id,
+                'rt_name': rt.name,
+                'user_email': rt.user.email,
+                'new_password': new_password,
+                'note': 'Berikan password baru ini ke RT untuk login'
+            }
+        }, status=status.HTTP_200_OK)
+
 
 class RTViewSet(viewsets.ModelViewSet):
     queryset = RT.objects.all()
@@ -395,6 +443,54 @@ class RTViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reset_password(self, request, pk=None):
+        """Reset Resident password - RT endpoint to generate new password for Resident"""
+        # Verify user is RT
+        if request.user.role != 'rt':
+            return Response(
+                {'error': 'Hanya RT yang dapat reset password Warga'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            rt = request.user.rt_profile
+        except RT.DoesNotExist:
+            return Response(
+                {'error': 'RT profile tidak ditemukan'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            resident = Resident.objects.get(id=pk, rt=rt)
+        except Resident.DoesNotExist:
+            return Response(
+                {'error': 'Warga tidak ditemukan atau bukan milik RT ini'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate new password
+        import string
+        import random
+        chars = string.ascii_letters + string.digits + '!@#$%^&*'
+        new_password = ''.join(random.choice(chars) for _ in range(8))
+        
+        # Set new password to user
+        resident.user.set_password(new_password)
+        resident.user.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Password Warga berhasil direset',
+            'data': {
+                'resident_id': resident.id,
+                'resident_name': resident.name,
+                'user_email': resident.user.email,
+                'new_password': new_password,
+                'note': 'Berikan password baru ini ke Warga untuk login'
+            }
+        }, status=status.HTTP_200_OK)
 
 
 class ResidentViewSet(viewsets.ModelViewSet):
@@ -517,6 +613,59 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
     
+    def perform_create(self, serializer):
+        """Override create to auto-set user and rt from current user"""
+        user = self.request.user
+        rt = None
+        
+        if user.role == 'rt':
+            # RT creates announcements for their own RT
+            try:
+                rt = user.rt_profile
+            except RT.DoesNotExist:
+                raise serializers.ValidationError("User does not have an RT profile. Cannot create announcement.")
+        elif user.role == 'rw':
+            # RW can create announcements for any of their RTs
+            try:
+                rw = user.rw_profile
+                rt_id = self.request.data.get('rt_id')
+                
+                if not rt_id:
+                    raise serializers.ValidationError("RW must specify which RT this announcement is for (rt_id is required).")
+                
+                # Verify RT belongs to this RW
+                rt = RT.objects.get(id=rt_id, rw=rw)
+            except RT.DoesNotExist:
+                raise serializers.ValidationError("RT tidak ditemukan atau tidak termasuk dalam RW Anda.")
+            except Exception as e:
+                raise serializers.ValidationError(f"Error: {str(e)}")
+        else:
+            raise serializers.ValidationError("Only RW and RT staff can create announcements.")
+        
+        serializer.save(user=user, rt=rt)
+    
+    def perform_update(self, serializer):
+        """Override update to maintain user and rt"""
+        user = self.request.user
+        rt = serializer.instance.rt  # Keep existing RT by default
+        
+        if user.role == 'rt':
+            try:
+                rt = user.rt_profile
+            except RT.DoesNotExist:
+                raise serializers.ValidationError("User does not have an RT profile.")
+        elif user.role == 'rw':
+            # RW can update announcements for their RTs
+            try:
+                rw = user.rw_profile
+                # Verify current announcement belongs to their RT
+                if serializer.instance.rt.rw != rw:
+                    raise serializers.ValidationError("Anda tidak memiliki akses untuk mengubah pengumuman ini.")
+            except Exception as e:
+                raise serializers.ValidationError(f"Error: {str(e)}")
+        
+        serializer.save(user=user, rt=rt)
+    
     def get_queryset(self):
         user = self.request.user
         queryset = Announcement.objects.all()
@@ -574,6 +723,90 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
     serializer_class = SecurityScheduleSerializer
     permission_classes = [IsAuthenticated]
     
+    def perform_create(self, serializer):
+        """Auto-set RW from current user and link personnel by name"""
+        user = self.request.user
+        rw = None
+        
+        if user.role == 'rw':
+            try:
+                rw = user.rw_profile
+            except:
+                raise serializers.ValidationError("User does not have an RW profile.")
+        else:
+            raise serializers.ValidationError("Only RW staff can create security schedules.")
+        
+        # Check if there are any active personnel
+        active_personnel_count = SecurityPersonnel.objects.filter(rw=rw, status='aktif').count()
+        if active_personnel_count == 0:
+            raise serializers.ValidationError("Tidak ada petugas keamanan aktif. Tambahkan petugas di Master Data Keamanan terlebih dahulu.")
+        
+        # Link personnel by name if exists
+        personnel = None
+        personnel_name = serializer.validated_data.get('name')
+        if personnel_name:
+            try:
+                personnel = SecurityPersonnel.objects.get(rw=rw, name=personnel_name, status='aktif')
+            except SecurityPersonnel.DoesNotExist:
+                raise serializers.ValidationError(f"Petugas '{personnel_name}' tidak ditemukan atau tidak aktif.")
+        
+        # Validate date ranges for weekly and monthly schedules
+        schedule_type = serializer.validated_data.get('schedule_type', 'daily')
+        if schedule_type in ['weekly', 'monthly']:
+            start_date = serializer.validated_data.get('start_date')
+            end_date = serializer.validated_data.get('end_date')
+            
+            if not start_date or not end_date:
+                raise serializers.ValidationError("Tanggal mulai dan tanggal berakhir harus diisi untuk jadwal mingguan dan bulanan.")
+            
+            if start_date > end_date:
+                raise serializers.ValidationError("Tanggal mulai harus lebih kecil atau sama dengan tanggal berakhir.")
+            
+            if schedule_type == 'weekly':
+                if serializer.validated_data.get('weekday') is None:
+                    raise serializers.ValidationError("Hari harus dipilih untuk jadwal mingguan.")
+            elif schedule_type == 'monthly':
+                if serializer.validated_data.get('month_day') is None:
+                    raise serializers.ValidationError("Tanggal bulan harus diisi untuk jadwal bulanan.")
+        
+        serializer.save(user=user, rw=rw, personnel=personnel)
+    
+    def perform_update(self, serializer):
+        """Update schedule and re-link personnel by name"""
+        rw = serializer.instance.rw
+        
+        # Link personnel by name if exists
+        personnel = None
+        personnel_name = serializer.validated_data.get('name', serializer.instance.name)
+        if personnel_name:
+            try:
+                personnel = SecurityPersonnel.objects.get(rw=rw, name=personnel_name, status='aktif')
+            except SecurityPersonnel.DoesNotExist:
+                pass  # Name doesn't match any active personnel, that's OK
+        
+        # Validate date ranges for weekly and monthly schedules
+        schedule_type = serializer.validated_data.get('schedule_type', serializer.instance.schedule_type)
+        if schedule_type in ['weekly', 'monthly']:
+            start_date = serializer.validated_data.get('start_date', serializer.instance.start_date)
+            end_date = serializer.validated_data.get('end_date', serializer.instance.end_date)
+            
+            if not start_date or not end_date:
+                raise serializers.ValidationError("Tanggal mulai dan tanggal berakhir harus diisi untuk jadwal mingguan dan bulanan.")
+            
+            if start_date > end_date:
+                raise serializers.ValidationError("Tanggal mulai harus lebih kecil atau sama dengan tanggal berakhir.")
+            
+            if schedule_type == 'weekly':
+                weekday = serializer.validated_data.get('weekday', serializer.instance.weekday)
+                if weekday is None:
+                    raise serializers.ValidationError("Hari harus dipilih untuk jadwal mingguan.")
+            elif schedule_type == 'monthly':
+                month_day = serializer.validated_data.get('month_day', serializer.instance.month_day)
+                if month_day is None:
+                    raise serializers.ValidationError("Tanggal bulan harus diisi untuk jadwal bulanan.")
+        
+        serializer.save(personnel=personnel)
+    
     def get_queryset(self):
         user = self.request.user
         queryset = SecuritySchedule.objects.all()
@@ -629,3 +862,51 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
             'active': active,
             'by_shift': by_shift
         })
+
+
+class SecurityPersonnelViewSet(viewsets.ModelViewSet):
+    queryset = SecurityPersonnel.objects.all()
+    serializer_class = SecurityPersonnelSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        """Auto-set RW from current user"""
+        user = self.request.user
+        rw = None
+        
+        if user.role == 'rw':
+            try:
+                rw = user.rw_profile
+            except:
+                raise serializers.ValidationError("User does not have an RW profile.")
+        else:
+            raise serializers.ValidationError("Only RW staff can create security personnel records.")
+        
+        serializer.save(rw=rw)
+    
+    def get_queryset(self):
+        """Only allow RW to see their own security personnel"""
+        user = self.request.user
+        queryset = SecurityPersonnel.objects.all()
+        
+        if user.role == 'rw':
+            try:
+                rw = user.rw_profile
+                queryset = queryset.filter(rw=rw)
+            except:
+                queryset = queryset.none()
+        else:
+            # RT and Warga can view security personnel but from their RW
+            try:
+                if user.role == 'rt':
+                    rt = user.rt_profile
+                    queryset = queryset.filter(rw=rt.rw)
+                elif user.role == 'warga':
+                    resident = user.resident_profile
+                    queryset = queryset.filter(rw=resident.rt.rw)
+                else:
+                    queryset = queryset.none()
+            except:
+                queryset = queryset.none()
+        
+        return queryset.order_by('name')

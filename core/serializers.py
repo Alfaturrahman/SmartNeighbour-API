@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule
+from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySchedule, SecurityPersonnel
 from django.utils import timezone
 
 class UserSerializer(serializers.ModelSerializer):
@@ -85,17 +85,27 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Announcement
         fields = ['id', 'user', 'user_email', 'rt', 'rt_name', 'title', 'content', 'author', 'date', 'priority', 'created_at', 'updated_at']
-        read_only_fields = ['date', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'rt', 'date', 'created_at', 'updated_at']
 
 
 class SecurityScheduleSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     rw_name = serializers.CharField(source='rw.name', read_only=True)
+    personnel_name = serializers.CharField(source='personnel.name', read_only=True, required=False)
     
     class Meta:
         model = SecuritySchedule
-        fields = ['id', 'user', 'user_email', 'rw', 'rw_name', 'name', 'shift', 'date', 'time', 'status', 'notes', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'user', 'user_email', 'rw', 'rw_name', 'personnel', 'personnel_name', 'name', 'shift', 'schedule_type', 'date', 'start_date', 'end_date', 'weekday', 'month_day', 'time', 'status', 'notes', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'rw', 'personnel', 'created_at', 'updated_at']
+
+
+class SecurityPersonnelSerializer(serializers.ModelSerializer):
+    rw_name = serializers.CharField(source='rw.name', read_only=True)
+    
+    class Meta:
+        model = SecurityPersonnel
+        fields = ['id', 'rw', 'rw_name', 'name', 'phone', 'email', 'address', 'area', 'status', 'notes', 'created_at', 'updated_at']
+        read_only_fields = ['rw', 'created_at', 'updated_at']
 
 
 class RTCreateSerializer(serializers.Serializer):

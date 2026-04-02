@@ -153,11 +153,33 @@ class SecuritySchedule(models.Model):
         ('tidak aktif', 'Tidak Aktif'),
     ]
     
+    SCHEDULE_TYPE_CHOICES = [
+        ('daily', 'Harian'),
+        ('weekly', 'Mingguan'),
+        ('monthly', 'Bulanan'),
+    ]
+    
+    WEEKDAY_CHOICES = [
+        (0, 'Senin'),
+        (1, 'Selasa'),
+        (2, 'Rabu'),
+        (3, 'Kamis'),
+        (4, 'Jumat'),
+        (5, 'Sabtu'),
+        (6, 'Minggu'),
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='security_schedules', db_column='user_id')
     rw = models.ForeignKey(RW, on_delete=models.CASCADE, related_name='security_schedules')
+    personnel = models.ForeignKey('SecurityPersonnel', on_delete=models.SET_NULL, null=True, blank=True, related_name='schedules')
     name = models.CharField(max_length=200)
     shift = models.CharField(max_length=20, choices=SHIFT_CHOICES)
-    date = models.DateField()
+    schedule_type = models.CharField(max_length=20, choices=SCHEDULE_TYPE_CHOICES, default='daily')
+    date = models.DateField(null=True, blank=True)  # For daily schedules
+    start_date = models.DateField(null=True, blank=True)  # For weekly/monthly range start
+    end_date = models.DateField(null=True, blank=True)  # For weekly/monthly range end
+    weekday = models.IntegerField(choices=WEEKDAY_CHOICES, null=True, blank=True)  # For weekly (0-6)
+    month_day = models.IntegerField(null=True, blank=True)  # For monthly (1-31)
     time = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='aktif')
     notes = models.TextField(null=True, blank=True)
@@ -168,4 +190,33 @@ class SecuritySchedule(models.Model):
         db_table = 'security_schedules'
         
     def __str__(self):
+        if self.schedule_type == 'weekly':
+            return f'{self.name} - {self.shift} (Mingguan)'
+        elif self.schedule_type == 'monthly':
+            return f'{self.name} - {self.shift} (Bulanan)'
         return f'{self.name} - {self.shift} ({self.date})'
+
+
+class SecurityPersonnel(models.Model):
+    """Master data untuk petugas keamanan"""
+    STATUS_CHOICES = [
+        ('aktif', 'Aktif'),
+        ('tidak aktif', 'Tidak Aktif'),
+    ]
+    
+    rw = models.ForeignKey(RW, on_delete=models.CASCADE, related_name='security_personnel')
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(max_length=255, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    area = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='aktif')
+    notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'security_personnel'
+        
+    def __str__(self):
+        return f'{self.name} ({self.rw.name})'
