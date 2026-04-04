@@ -84,6 +84,13 @@ class Resident(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='aktif')
+    
+    # Additional fields for resident information
+    ktp = models.CharField(max_length=16, null=True, blank=True, verbose_name='Nomor KTP')
+    kk = models.CharField(max_length=16, null=True, blank=True, verbose_name='Nomor Kartu Keluarga')
+    jumlah_keluarga = models.IntegerField(null=True, blank=True, default=1, verbose_name='Jumlah Anggota Keluarga')
+    kepala_keluarga = models.CharField(max_length=200, null=True, blank=True, verbose_name='Nama Kepala Keluarga')
+    
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resident_profile')
     rt = models.ForeignKey(RT, on_delete=models.CASCADE, related_name='residents', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -102,7 +109,7 @@ class Feedback(models.Model):
     author = models.CharField(max_length=200)
     title = models.CharField(max_length=255)
     content = models.TextField()
-    rating = models.IntegerField()
+    rating = models.IntegerField(null=True, blank=True)
     date = models.DateField(auto_now_add=True)
     reply = models.TextField(null=True, blank=True)
     replied_at = models.DateTimeField(null=True, blank=True)

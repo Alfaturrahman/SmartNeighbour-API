@@ -1,0 +1,175 @@
+[
+{
+  "model": "core.user",
+  "pk": 1,
+  "fields": {
+    "email": "rw@test.com",
+    "password": "pbkdf2_sha256$720000$dc6z5CMvpsEl085g9MdMeK$T8l+dWmWAwr/Bb+l8jQ3A73/FIjjbixF/xv/eeUrtf8=",
+    "name": "RW Test",
+    "role": "rw",
+    "is_active": true,
+    "created_at": "2026-03-31T15:20:20.997Z",
+    "updated_at": "2026-04-02T17:22:17.485Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 2,
+  "fields": {
+    "email": "rt@test.com",
+    "password": "pbkdf2_sha256$720000$3AfQRESH2eJlaKBtQPpAaq$XIlPLzJTuzTUmkO9M8NqKTEgyOmsXqWoyVsJM3n1+AQ=",
+    "name": "Test RT",
+    "role": "rt",
+    "is_active": true,
+    "created_at": "2026-03-31T15:20:21.283Z",
+    "updated_at": "2026-04-02T17:22:17.749Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 3,
+  "fields": {
+    "email": "warga@test.com",
+    "password": "pbkdf2_sha256$720000$1WQ5I0sCPPsRMPKzKasuCS$7lfPrlRsGqIb/6qC1WQOsOO5SjuN4nfA6VOlqj1Tk/E=",
+    "name": "Test Warga",
+    "role": "warga",
+    "is_active": true,
+    "created_at": "2026-03-31T15:20:21.560Z",
+    "updated_at": "2026-04-02T17:22:18.007Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 4,
+  "fields": {
+    "email": "rtbaru@test.com",
+    "password": "pbkdf2_sha256$720000$JrWJOSHkiKfrdTj0OXQqST$8sBYoSTOa2MEqiXNnxs2cdcgQxMpwX/RU5kh9xN8gsI=",
+    "name": "RT Baru",
+    "role": "rt",
+    "is_active": true,
+    "created_at": "2026-03-31T15:44:13.613Z",
+    "updated_at": "2026-03-31T15:44:13.614Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 5,
+  "fields": {
+    "email": "wargabaru1@test.com",
+    "password": "pbkdf2_sha256$720000$U9RT34aTNPTbN3EyiskeR0$JWUNc+AohZxIvuq0/CuXuYBqpMJ2hn4rdWLciHk0ntY=",
+    "name": "Warga Baru 1",
+    "role": "warga",
+    "is_active": true,
+    "created_at": "2026-03-31T15:44:29.763Z",
+    "updated_at": "2026-03-31T15:44:29.763Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 6,
+  "fields": {
+    "email": "tes@gmail.com",
+    "password": "pbkdf2_sha256$720000$zlheHXUhVv2Xay2jYDvkST$DRw/5kN9cIuulnMmiyBeQkPmhvD9Lf3AKup9mMId0NI=",
+    "name": "tes",
+    "role": "rt",
+    "is_active": true,
+    "created_at": "2026-04-02T13:32:36.075Z",
+    "updated_at": "2026-04-02T13:45:00.958Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 7,
+  "fields": {
+    "email": "Rikiriki@gmail.com",
+    "password": "pbkdf2_sha256$720000$aWICMHd5oAAW2iqkE4qplr$xn0JsH7zC3IybGwOKC5s1cJILeqrBrb7CbRnC5lRfww=",
+    "name": "RT 001",
+    "role": "rt",
+    "is_active": true,
+    "created_at": "2026-04-03T11:06:00.535Z",
+    "updated_at": "2026-04-03T11:07:29.116Z"
+  }
+},
+{
+  "model": "core.user",
+  "pk": 8,
+  "fields": {
+    "email": "dian@gmail.com",
+    "password": "pbkdf2_sha256$720000$AxJGfPFdED0RnTuHh8s3gy$yutnG5oX60rb3ll26aLCXFUo92rUvTCxQNPtdl7hRdk=",
+    "name": "Dian",
+    "role": "warga",
+    "is_active": true,
+    "created_at": "2026-04-03T11:08:58.203Z",
+    "updated_at": "2026-04-03T11:08:58.203Z"
+  }
+},
+{
+  "model": "core.rw",
+  "pk": 1,
+  "fields": {
+    "name": "RW Test",
+    "user": 1,
+    "area": "Area Test",
+    "phone": "085123456789",
+    "address": null,
+    "created_at": "2026-03-31T15:20:21.006Z",
+    "updated_at": "2026-03-31T15:20:21.006Z"
+  }
+},
+{
+  "model": "core.rt",
+  "pk": 1,
+  "fields": {
+    "name": "RT Test",
+    "user": 2,
+    "rw": 1,
+    "area": "Area Test - RT",
+    "phone": "085987654321",
+    "address": null,
+    "created_at": "2026-03-31T15:20:21.289Z",
+    "updated_at": "2026-03-31T15:20:21.289Z"
+  }
+},
+{
+  "model": "core.rt",
+  "pk": 2,
+  "fields": {
+    "name": "RT Baru",
+    "user": 4,
+    "rw": 1,
+    "area": "Area Baru",
+    "phone": "0812345678",
+    "address": "",
+    "created_at": "2026-03-31T15:44:13.625Z",
+    "updated_at": "2026-03-31T15:44:13.625Z"
+  }
+},
+{
+  "model": "core.rt",
+  "pk": 3,
+  "fields": {
+    "name": "tes",
+    "user": 6,
+    "rw": 1,
+    "area": "RT4",
+    "phone": "1234566",
+    "address": "RT4",
+    "created_at": "2026-04-02T13:32:36.087Z",
+    "updated_at": "2026-04-02T13:32:36.087Z"
+  }
+},
+{
+  "model": "core.rt",
+  "pk": 4,
+  "fields": {
+    "name": "RT 001",
+    "user": 7,
+    "rw": 1,
+    "area": "RT 001",
+    "phone": "082174945496",
+    "address": "villa muka kuning",
+    "created_at": "2026-04-03T11:06:00.545Z",
+    "updated_at": "2026-04-03T11:06:00.545Z"
+  }
+}
+]

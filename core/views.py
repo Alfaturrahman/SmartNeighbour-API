@@ -358,10 +358,7 @@ class RWViewSet(viewsets.ModelViewSet):
             )
         
         # Generate new password
-        import string
-        import random
-        chars = string.ascii_letters + string.digits + '!@#$%^&*'
-        new_password = ''.join(random.choice(chars) for _ in range(8))
+        new_password = 'passw0rd'
         
         # Set new password to user
         rt.user.set_password(new_password)
@@ -471,10 +468,7 @@ class RTViewSet(viewsets.ModelViewSet):
             )
         
         # Generate new password
-        import string
-        import random
-        chars = string.ascii_letters + string.digits + '!@#$%^&*'
-        new_password = ''.join(random.choice(chars) for _ in range(8))
+        new_password = 'passw0rd'
         
         # Set new password to user
         resident.user.set_password(new_password)
@@ -535,6 +529,30 @@ class ResidentViewSet(viewsets.ModelViewSet):
             
         return queryset.order_by('-created_at')
     
+    def perform_update(self, serializer):
+        """Override update to check if user can edit this resident"""
+        user = self.request.user
+        resident = serializer.instance
+        
+        # RT can only update residents in their own RT
+        if user.role == 'rt':
+            try:
+                rt = user.rt_profile
+                if resident.rt != rt:
+                    raise serializers.ValidationError("Anda hanya dapat mengedit warga di RT Anda sendiri.")
+            except RT.DoesNotExist:
+                raise serializers.ValidationError("User does not have an RT profile.")
+        elif user.role == 'rw':
+            # RW can update residents in their RTs
+            try:
+                rw = user.rw_profile
+                if resident.rt.rw != rw:
+                    raise serializers.ValidationError("Anda hanya dapat mengedit warga di RW Anda.")
+            except Exception as e:
+                raise serializers.ValidationError(f"Error: {str(e)}")
+        
+        serializer.save()
+    
     @action(detail=False, methods=['get'])
     def stats(self, request):
         total = Resident.objects.count()
@@ -558,8 +576,12 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         
         # Data scoping based on user role
         if user.role == 'warga':
-            # Warga only sees their own feedback
-            queryset = queryset.filter(user=user)
+            # Warga sees all feedback from their RT (for transparency)
+            try:
+                resident = user.resident_profile
+                queryset = queryset.filter(rt=resident.rt)
+            except Resident.DoesNotExist:
+                queryset = queryset.none()
         elif user.role == 'rt':
             # RT sees feedback from their residents
             try:
@@ -606,6 +628,45 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             'unreplied': unreplied,
             'average_rating': round(avg_rating, 2)
         })
+    
+    def perform_create(self, serializer):
+        """Override create to auto-set user and rt"""
+        user = self.request.user
+        
+        # Auto-set RT based on user role if not provided
+        rt = serializer.validated_data.get('rt')
+        if not rt:
+            if user.role == 'rt':
+                # RT creates feedback for their own RT
+                try:
+                    rt = user.rt_profile
+                except RT.DoesNotExist:
+                    pass
+            elif user.role == 'warga':
+                # For warga, find their RT from resident record
+                try:
+                    resident = Resident.objects.filter(email=user.email).first()
+                    if resident:
+                        rt = resident.rt
+                except Exception:
+                    pass
+        
+        # Save with user and rt
+        if rt:
+            serializer.save(user=user, rt=rt)
+        else:
+            serializer.save(user=user)
+    
+    def perform_update(self, serializer):
+        """Override update to check if user is the creator"""
+        user = self.request.user
+        feedback = serializer.instance
+        
+        # Check if user is the creator of this feedback
+        if feedback.user != user:
+            raise serializers.ValidationError("Anda hanya dapat mengedit feedback yang Anda buat sendiri.")
+        
+        serializer.save()
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
@@ -614,7 +675,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
-        """Override create to auto-set user and rt from current user"""
+        """Override create to auto-set user, rt, and author from current user"""
         user = self.request.user
         rt = None
         
@@ -642,12 +703,19 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         else:
             raise serializers.ValidationError("Only RW and RT staff can create announcements.")
         
-        serializer.save(user=user, rt=rt)
+        # Auto-set author from user's name
+        serializer.save(user=user, rt=rt, author=user.name or user.email)
     
     def perform_update(self, serializer):
-        """Override update to maintain user and rt"""
+        """Override update to maintain user, rt, and author - only creator can edit"""
         user = self.request.user
-        rt = serializer.instance.rt  # Keep existing RT by default
+        announcement = serializer.instance
+        rt = announcement.rt  # Keep existing RT by default
+        author = announcement.author  # Keep original author
+        
+        # Check if user is the creator of this announcement
+        if announcement.user != user:
+            raise serializers.ValidationError("Anda hanya dapat mengedit pengumuman yang Anda buat sendiri.")
         
         if user.role == 'rt':
             try:
@@ -659,12 +727,12 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             try:
                 rw = user.rw_profile
                 # Verify current announcement belongs to their RT
-                if serializer.instance.rt.rw != rw:
+                if announcement.rt.rw != rw:
                     raise serializers.ValidationError("Anda tidak memiliki akses untuk mengubah pengumuman ini.")
             except Exception as e:
                 raise serializers.ValidationError(f"Error: {str(e)}")
         
-        serializer.save(user=user, rt=rt)
+        serializer.save(user=user, rt=rt, author=author)
     
     def get_queryset(self):
         user = self.request.user
@@ -762,10 +830,8 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
             if start_date > end_date:
                 raise serializers.ValidationError("Tanggal mulai harus lebih kecil atau sama dengan tanggal berakhir.")
             
-            if schedule_type == 'weekly':
-                if serializer.validated_data.get('weekday') is None:
-                    raise serializers.ValidationError("Hari harus dipilih untuk jadwal mingguan.")
-            elif schedule_type == 'monthly':
+            # Removed weekday validation for weekly schedules - now it's just a date range
+            if schedule_type == 'monthly':
                 if serializer.validated_data.get('month_day') is None:
                     raise serializers.ValidationError("Tanggal bulan harus diisi untuk jadwal bulanan.")
         
@@ -796,11 +862,8 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
             if start_date > end_date:
                 raise serializers.ValidationError("Tanggal mulai harus lebih kecil atau sama dengan tanggal berakhir.")
             
-            if schedule_type == 'weekly':
-                weekday = serializer.validated_data.get('weekday', serializer.instance.weekday)
-                if weekday is None:
-                    raise serializers.ValidationError("Hari harus dipilih untuk jadwal mingguan.")
-            elif schedule_type == 'monthly':
+            # Removed weekday validation for weekly schedules - now it's just a date range
+            if schedule_type == 'monthly':
                 month_day = serializer.validated_data.get('month_day', serializer.instance.month_day)
                 if month_day is None:
                     raise serializers.ValidationError("Tanggal bulan harus diisi untuk jadwal bulanan.")
@@ -908,5 +971,10 @@ class SecurityPersonnelViewSet(viewsets.ModelViewSet):
                     queryset = queryset.none()
             except:
                 queryset = queryset.none()
+        
+        # Filter by status if provided in query params
+        status_param = self.request.query_params.get('status', None)
+        if status_param:
+            queryset = queryset.filter(status=status_param)
         
         return queryset.order_by('name')

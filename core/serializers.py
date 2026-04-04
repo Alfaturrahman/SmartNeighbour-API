@@ -54,21 +54,23 @@ class ResidentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Resident
-        fields = ['id', 'name', 'address', 'phone', 'email', 'status', 'user', 'user_email', 'rt', 'rt_name', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'address', 'phone', 'email', 'status', 'ktp', 'kk', 'jumlah_keluarga', 'kepala_keluarga', 'user', 'user_email', 'rt', 'rt_name', 'created_at', 'updated_at']
         read_only_fields = ['user', 'created_at', 'updated_at']
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
+    user_role = serializers.CharField(source='user.role', read_only=True, required=False)
     rt_name = serializers.CharField(source='rt.name', read_only=True)
+    rt = serializers.PrimaryKeyRelatedField(queryset=RT.objects.all(), required=False)
     
     class Meta:
         model = Feedback
-        fields = ['id', 'user', 'user_email', 'rt', 'rt_name', 'author', 'title', 'content', 'rating', 'date', 'reply', 'replied_at', 'replied_by', 'created_at', 'updated_at']
+        fields = ['id', 'user', 'user_email', 'user_role', 'rt', 'rt_name', 'author', 'title', 'content', 'rating', 'date', 'reply', 'replied_at', 'replied_by', 'created_at', 'updated_at']
         read_only_fields = ['date', 'replied_at', 'created_at', 'updated_at']
     
     def validate_rating(self, value):
-        if value < 1 or value > 5:
+        if value is not None and (value < 1 or value > 5):
             raise serializers.ValidationError('Rating harus antara 1-5')
         return value
 
@@ -80,22 +82,25 @@ class FeedbackReplySerializer(serializers.Serializer):
 
 class AnnouncementSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
+    user_role = serializers.CharField(source='user.role', read_only=True, required=False)
     rt_name = serializers.CharField(source='rt.name', read_only=True)
     
     class Meta:
         model = Announcement
-        fields = ['id', 'user', 'user_email', 'rt', 'rt_name', 'title', 'content', 'author', 'date', 'priority', 'created_at', 'updated_at']
-        read_only_fields = ['user', 'rt', 'date', 'created_at', 'updated_at']
+        fields = ['id', 'user', 'user_email', 'user_role', 'rt', 'rt_name', 'title', 'content', 'author', 'date', 'priority', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'rt', 'author', 'date', 'created_at', 'updated_at']
 
 
 class SecurityScheduleSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     rw_name = serializers.CharField(source='rw.name', read_only=True)
     personnel_name = serializers.CharField(source='personnel.name', read_only=True, required=False)
+    personnel_phone = serializers.CharField(source='personnel.phone', read_only=True, required=False)
+    personnel_email = serializers.EmailField(source='personnel.email', read_only=True, required=False)
     
     class Meta:
         model = SecuritySchedule
-        fields = ['id', 'user', 'user_email', 'rw', 'rw_name', 'personnel', 'personnel_name', 'name', 'shift', 'schedule_type', 'date', 'start_date', 'end_date', 'weekday', 'month_day', 'time', 'status', 'notes', 'created_at', 'updated_at']
+        fields = ['id', 'user', 'user_email', 'rw', 'rw_name', 'personnel', 'personnel_name', 'personnel_phone', 'personnel_email', 'name', 'shift', 'schedule_type', 'date', 'start_date', 'end_date', 'weekday', 'month_day', 'time', 'status', 'notes', 'created_at', 'updated_at']
         read_only_fields = ['user', 'rw', 'personnel', 'created_at', 'updated_at']
 
 
@@ -123,12 +128,8 @@ class RTCreateSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         """Auto-create User dan RT profile"""
-        import secrets
-        import string
-        
-        # Generate random password (8 chars: mix of letters, numbers, symbols)
-        alphabet = string.ascii_letters + string.digits + '!@#$%'
-        generated_password = ''.join(secrets.choice(alphabet) for i in range(8))
+        # Static default password for all new accounts
+        generated_password = 'passw0rd'
         
         # Create User
         user = User(
@@ -167,6 +168,10 @@ class ResidentCreateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)
     status = serializers.ChoiceField(choices=['aktif', 'tidak aktif'], default='aktif')
+    ktp = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    kk = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    jumlah_keluarga = serializers.IntegerField(required=False, default=1)
+    kepala_keluarga = serializers.CharField(max_length=200, required=False, allow_blank=True)
     
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -175,12 +180,8 @@ class ResidentCreateSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         """Auto-create User dan Resident profile"""
-        import secrets
-        import string
-        
-        # Generate random password
-        alphabet = string.ascii_letters + string.digits + '!@#$%'
-        generated_password = ''.join(secrets.choice(alphabet) for i in range(8))
+        # Static default password for all new accounts
+        generated_password = 'passw0rd'
         
         # Create User
         user = User(
@@ -203,7 +204,11 @@ class ResidentCreateSerializer(serializers.Serializer):
             email=validated_data['email'],
             phone=validated_data.get('phone', ''),
             address=validated_data.get('address', ''),
-            status=validated_data.get('status', 'aktif')
+            status=validated_data.get('status', 'aktif'),
+            ktp=validated_data.get('ktp', ''),
+            kk=validated_data.get('kk', ''),
+            jumlah_keluarga=validated_data.get('jumlah_keluarga', 1),
+            kepala_keluarga=validated_data.get('kepala_keluarga', '')
         )
         resident.save()
         
