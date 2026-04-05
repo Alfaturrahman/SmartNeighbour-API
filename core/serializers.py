@@ -40,7 +40,7 @@ class RTSerializer(serializers.ModelSerializer):
     class Meta:
         model = RT
         fields = ['id', 'name', 'user', 'user_email', 'rw', 'rw_name', 'area', 'phone', 'address', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['user', 'rw', 'created_at', 'updated_at']
 
 
 class LoginSerializer(serializers.Serializer):
