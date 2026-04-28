@@ -28,6 +28,14 @@ Backend API untuk sistem manajemen perumahan SmartNeighbour menggunakan Django R
   - Jadwal keamanan
   - Dan lainnya...
 
+- **[🧠 CARA_MEMAHAMI_KONSEP.md](./CARA_MEMAHAMI_KONSEP.md)** - Panduan belajar & pemahaman ⭐ NEW!
+  - **Bukan untuk hafalan**, tapi untuk **pemahaman mendalam**
+  - Strategi belajar step-by-step (5 hari)
+  - Trace flow lengkap dengan penjelasan detail
+  - Self-test & interview simulation
+  - Mental models & analogi real-world
+  - Tips confidence untuk presentasi
+
 ---
 
 ## �🚀 Fitur
