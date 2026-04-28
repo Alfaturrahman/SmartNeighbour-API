@@ -7,6 +7,7 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# Secret key buat encrypt session dan tokens, harus beda di production
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-^yjdr0-lkr83jj6m=)1fz8l#bf)dkxi#6-t0a!gg=bbr*5dk@^')
 
 if not os.getenv('SECRET_KEY'):
@@ -14,6 +15,7 @@ if not os.getenv('SECRET_KEY'):
     warnings.warn('SECRET_KEY not set in environment variables. Using default insecure key!')
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Debug mode, set False di production biar error ga keliatan detail
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -67,6 +69,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'smartneighbour_api.wsgi.application'
 
 # Support Railway's DATABASE_URL or individual env vars
+# Database config: support PostgreSQL (production) dan SQLite (development)
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
@@ -108,6 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Authentication backends
+# Backend custom buat login pakai email (bukan username)
 AUTHENTICATION_BACKENDS = [
     'core.backends.CustomUserBackend',
     'django.contrib.auth.backends.ModelBackend',
@@ -127,6 +131,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework
+# Konfigurasi DRF: JWT auth, pagination, datetime format
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'core.authentication.CustomJWTAuthentication',  # Changed to custom JWT authentication
@@ -142,6 +147,7 @@ REST_FRAMEWORK = {
 }
 
 # JWT Settings
+# Konfigurasi JWT: token valid 24 jam, refresh 7 hari
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),

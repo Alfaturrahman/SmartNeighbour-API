@@ -4,6 +4,7 @@ from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySche
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
+    # Admin interface buat manage User, auto-hash password saat save
     list_display = ['id', 'email', 'name', 'role', 'is_active', 'created_at']
     list_filter = ['role', 'is_active', 'created_at']
     search_fields = ['email', 'name']
@@ -25,6 +26,7 @@ class UserAdmin(admin.ModelAdmin):
     )
     
     def save_model(self, request, obj, form, change):
+        # Override save buat auto-hash password kalau password diubah
         if not change or 'password' in form.changed_data:
             # Only hash password if it's a new user or password was changed
             if not obj.password.startswith('pbkdf2_'):
@@ -34,6 +36,7 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(RW)
 class RWAdmin(admin.ModelAdmin):
+    # Admin interface buat RW
     list_display = ['id', 'name', 'user', 'area', 'phone', 'created_at']
     list_filter = ['created_at']
     search_fields = ['name', 'user__email', 'area', 'phone']
@@ -53,6 +56,7 @@ class RWAdmin(admin.ModelAdmin):
 
 @admin.register(RT)
 class RTAdmin(admin.ModelAdmin):
+    # Admin interface buat RT
     list_display = ['id', 'name', 'user', 'rw', 'area', 'phone', 'created_at']
     list_filter = ['rw', 'created_at']
     search_fields = ['name', 'user__email', 'rw__name', 'area', 'phone']
@@ -72,6 +76,7 @@ class RTAdmin(admin.ModelAdmin):
 
 @admin.register(Resident)
 class ResidentAdmin(admin.ModelAdmin):
+    # Admin interface buat Resident/Warga
     list_display = ['id', 'name', 'email', 'phone', 'rt', 'status', 'created_at']
     list_filter = ['status', 'rt', 'created_at']
     search_fields = ['name', 'email', 'phone', 'address']
@@ -91,6 +96,7 @@ class ResidentAdmin(admin.ModelAdmin):
 
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
+    # Admin interface buat Feedback, bisa lihat mana yang udah dibalas
     list_display = ['id', 'title', 'author', 'rating', 'rt', 'date', 'has_reply', 'created_at']
     list_filter = ['rating', 'rt', 'date', 'created_at']
     search_fields = ['title', 'author', 'content']

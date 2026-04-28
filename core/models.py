@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 
 class User(models.Model):
+    # Model custom User buat authentication, support 3 role: RW, RT, Warga
     ROLE_CHOICES = [
         ('rw', 'Rukun Warga'),
         ('rt', 'Rukun Tetangga'),
@@ -23,9 +24,11 @@ class User(models.Model):
         return f"{self.email} ({self.get_role_display()})"
     
     def set_password(self, raw_password):
+        # Hash password sebelum disimpan ke database
         self.password = make_password(raw_password)
         
     def check_password(self, raw_password):
+        # Verifikasi password yang diinput dengan yang di database
         return check_password(raw_password, self.password)
     
     # Required for Django authentication system compatibility
@@ -40,6 +43,7 @@ class User(models.Model):
 
 class RW(models.Model):
     """Rukun Warga - Community Head"""
+    # Model buat data RW (level tertinggi), one-to-one dengan User role 'rw'
     name = models.CharField(max_length=200)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='rw_profile')
     area = models.CharField(max_length=255, null=True, blank=True)
@@ -57,6 +61,7 @@ class RW(models.Model):
 
 class RT(models.Model):
     """Rukun Tetangga - Smaller unit head under RW"""
+    # Model buat data RT (dibawah RW), one-to-one dengan User role 'rt'
     name = models.CharField(max_length=200)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='rt_profile')
     rw = models.ForeignKey(RW, on_delete=models.CASCADE, related_name='rts')
@@ -74,6 +79,7 @@ class RT(models.Model):
 
 
 class Resident(models.Model):
+    # Model data warga/resident, bisa link ke User atau stand-alone
     STATUS_CHOICES = [
         ('aktif', 'Aktif'),
         ('tidak aktif', 'Tidak Aktif'),
@@ -104,6 +110,7 @@ class Resident(models.Model):
 
 
 class Feedback(models.Model):
+    # Model feedback/keluhan dari warga, bisa dikasih reply sama RT/RW
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='feedbacks', db_column='user_id')
     rt = models.ForeignKey(RT, on_delete=models.CASCADE, related_name='feedbacks')
     author = models.CharField(max_length=200)
@@ -125,6 +132,7 @@ class Feedback(models.Model):
 
 
 class Announcement(models.Model):
+    # Model pengumuman dari RT/RW ke warga, ada priority: high/medium/low
     PRIORITY_CHOICES = [
         ('high', 'High'),
         ('medium', 'Medium'),
@@ -149,6 +157,7 @@ class Announcement(models.Model):
 
 
 class SecuritySchedule(models.Model):
+    # Model jadwal jaga keamanan, support 3 tipe: daily/weekly/monthly
     SHIFT_CHOICES = [
         ('Pagi', 'Pagi'),
         ('Siang', 'Siang'),
@@ -206,6 +215,7 @@ class SecuritySchedule(models.Model):
 
 class SecurityPersonnel(models.Model):
     """Master data untuk petugas keamanan"""
+    # Model master data petugas keamanan, bisa di-link ke jadwal
     STATUS_CHOICES = [
         ('aktif', 'Aktif'),
         ('tidak aktif', 'Tidak Aktif'),

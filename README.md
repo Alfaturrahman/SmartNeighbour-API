@@ -2,7 +2,35 @@
 
 Backend API untuk sistem manajemen perumahan SmartNeighbour menggunakan Django REST Framework.
 
-## 🚀 Fitur
+## � Dokumentasi Lengkap
+
+> **Dokumentasi developer lengkap sudah tersedia!**
+
+- **[📖 DOKUMENTASI_KODE.md](./DOKUMENTASI_KODE.md)** - Dokumentasi teknis lengkap
+  - Arsitektur backend
+  - Database models & relationships
+  - API endpoints detail
+  - **Frontend integration guide** ⭐
+  - Flow diagrams
+  - Best practices
+  
+- **[🚀 QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - API cheat sheet
+  - Quick reference semua endpoints
+  - Request/response examples
+  - Error codes
+  - Frontend usage snippets
+  
+- **[📝 USE_CASE_EXAMPLES.md](./USE_CASE_EXAMPLES.md)** - Tutorial step-by-step
+  - RW membuat RT baru
+  - RT mendaftarkan warga
+  - Warga submit feedback & RT reply
+  - Membuat pengumuman
+  - Jadwal keamanan
+  - Dan lainnya...
+
+---
+
+## �🚀 Fitur
 
 - ✅ Autentikasi JWT dengan refresh tokens
 - ✅ CRUD untuk User, Resident, Feedback, Announcement, Security Schedule

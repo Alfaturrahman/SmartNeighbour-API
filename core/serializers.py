@@ -3,6 +3,7 @@ from .models import User, RW, RT, Resident, Feedback, Announcement, SecuritySche
 from django.utils import timezone
 
 class UserSerializer(serializers.ModelSerializer):
+    # Serializer buat User, auto-hash password saat create/update
     class Meta:
         model = User
         fields = ['id', 'email', 'password', 'name', 'role', 'is_active', 'created_at', 'updated_at']
@@ -13,18 +14,21 @@ class UserSerializer(serializers.ModelSerializer):
         }
     
     def create(self, validated_data):
+        # Buat user baru dan hash passwordnya
         user = User(**validated_data)
         user.set_password(validated_data['password'])
         user.save()
         return user
     
     def update(self, instance, validated_data):
+        # Update user, kalau password diubah maka hash ulang
         if 'password' in validated_data:
             instance.set_password(validated_data.pop('password'))
         return super().update(instance, validated_data)
 
 
 class RWSerializer(serializers.ModelSerializer):
+    # Serializer RW, include email user untuk display
     user_email = serializers.EmailField(source='user.email', read_only=True)
     
     class Meta:
@@ -34,6 +38,7 @@ class RWSerializer(serializers.ModelSerializer):
 
 
 class RTSerializer(serializers.ModelSerializer):
+    # Serializer RT, include email user dan nama RW untuk display
     user_email = serializers.EmailField(source='user.email', read_only=True)
     rw_name = serializers.CharField(source='rw.name', read_only=True)
     
@@ -44,11 +49,13 @@ class RTSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    # Serializer buat validasi input login (email & password)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
 
 class ResidentSerializer(serializers.ModelSerializer):
+    # Serializer Resident, include data user dan RT untuk display
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     rt_name = serializers.CharField(source='rt.name', read_only=True)
     
@@ -59,6 +66,7 @@ class ResidentSerializer(serializers.ModelSerializer):
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
+    # Serializer Feedback, validasi rating 1-5, include data user dan RT
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     user_role = serializers.CharField(source='user.role', read_only=True, required=False)
     rt_name = serializers.CharField(source='rt.name', read_only=True)
@@ -70,17 +78,20 @@ class FeedbackSerializer(serializers.ModelSerializer):
         read_only_fields = ['date', 'replied_at', 'created_at', 'updated_at']
     
     def validate_rating(self, value):
+        # Validasi rating harus antara 1-5
         if value is not None and (value < 1 or value > 5):
             raise serializers.ValidationError('Rating harus antara 1-5')
         return value
 
 
 class FeedbackReplySerializer(serializers.Serializer):
+    # Serializer buat reply feedback, cuma butuh reply text dan nama yang reply
     reply = serializers.CharField()
     replied_by = serializers.CharField()
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):
+    # Serializer Announcement, include data user dan RT untuk display
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     user_role = serializers.CharField(source='user.role', read_only=True, required=False)
     rt_name = serializers.CharField(source='rt.name', read_only=True)
@@ -92,6 +103,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
 
 
 class SecurityScheduleSerializer(serializers.ModelSerializer):
+    # Serializer Jadwal Keamanan, include data petugas untuk display
     user_email = serializers.EmailField(source='user.email', read_only=True, required=False)
     rw_name = serializers.CharField(source='rw.name', read_only=True)
     personnel_name = serializers.CharField(source='personnel.name', read_only=True, required=False)
@@ -105,6 +117,7 @@ class SecurityScheduleSerializer(serializers.ModelSerializer):
 
 
 class SecurityPersonnelSerializer(serializers.ModelSerializer):
+    # Serializer Master Data Petugas Keamanan
     rw_name = serializers.CharField(source='rw.name', read_only=True)
     
     class Meta:
@@ -115,6 +128,7 @@ class SecurityPersonnelSerializer(serializers.ModelSerializer):
 
 class RTCreateSerializer(serializers.Serializer):
     """Serializer untuk RW membuat akun RT baru"""
+    # Serializer khusus buat RW bikin RT baru, auto-create User + RT profile
     name = serializers.CharField(max_length=200)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
@@ -128,6 +142,7 @@ class RTCreateSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         """Auto-create User dan RT profile"""
+        # Bikin User + RT profile sekaligus, password default: passw0rd
         # Static default password for all new accounts
         generated_password = 'passw0rd'
         
@@ -163,6 +178,7 @@ class RTCreateSerializer(serializers.Serializer):
 
 class ResidentCreateSerializer(serializers.Serializer):
     """Serializer untuk RT membuat akun Warga baru"""
+    # Serializer khusus buat RT daftarin warga baru, auto-create User + Resident profile
     name = serializers.CharField(max_length=200)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
@@ -180,6 +196,7 @@ class ResidentCreateSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         """Auto-create User dan Resident profile"""
+        # Bikin User + Resident profile sekaligus, password default: passw0rd
         # Static default password for all new accounts
         generated_password = 'passw0rd'
         

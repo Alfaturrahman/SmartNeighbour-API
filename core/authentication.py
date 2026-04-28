@@ -7,11 +7,13 @@ class CustomJWTAuthentication(JWTAuthentication):
     """
     Custom JWT authentication for custom User model
     """
+    # Custom JWT auth buat support model User sendiri (bukan Django User default)
     
     def get_user(self, validated_token):
         """
         Get user from validated token
         """
+        # Ambil user dari token yang udah divalidasi
         try:
             user_id = validated_token.get('user_id')
             user = User.objects.get(id=user_id, is_active=True)

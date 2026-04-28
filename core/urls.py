@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from . import plain_views
 
+# Router buat auto-generate URL patterns untuk ViewSets (CRUD endpoints)
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet)
 router.register(r'rw', views.RWViewSet)
@@ -14,6 +15,7 @@ router.register(r'security-schedules', views.SecurityScheduleViewSet)
 router.register(r'security-personnel', views.SecurityPersonnelViewSet)
 
 urlpatterns = [
+    # Auth endpoints: login, refresh token, get current user, verify token
     path('auth/login/', views.login_view, name='login'),
     path('auth/refresh/', views.refresh_token_view, name='refresh-token'),
     path('auth/me/', views.current_user, name='current-user'),

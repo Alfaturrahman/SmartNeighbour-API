@@ -16,6 +16,7 @@ from .serializers import (
 @permission_classes([AllowAny])
 def login_view(request):
     """Login endpoint - returns JWT tokens"""
+    # Fungsi buat login user, cek email & password terus return JWT token
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         email = serializer.validated_data['email']
@@ -70,6 +71,7 @@ def login_view(request):
 @permission_classes([AllowAny])
 def current_user(request):
     """Get current authenticated user from JWT token"""
+    # Ambil data user yang lagi login dari token JWT yang dikirim
     auth_header = request.headers.get('Authorization', '')
     
     if not auth_header.startswith('Bearer '):
@@ -126,6 +128,7 @@ def current_user(request):
 @permission_classes([AllowAny])
 def verify_token(request):
     """Verify JWT token validity and return user data"""
+    # Cek apakah token masih valid atau sudah expired
     auth_header = request.headers.get('Authorization', '')
     
     if not auth_header.startswith('Bearer '):
@@ -193,6 +196,7 @@ def verify_token(request):
 @permission_classes([AllowAny])
 def refresh_token_view(request):
     """Refresh access token using refresh token"""
+    # Generate token baru kalau token lama udah mau expired
     refresh_token = request.data.get('refresh')
     
     if not refresh_token:
@@ -248,12 +252,14 @@ def refresh_token_view(request):
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    # API lengkap buat manage semua user (CRUD)
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        # Endpoint buat lihat statistik user (total, aktif, by role)
         total = User.objects.count()
         active = User.objects.filter(is_active=True).count()
         by_role = {
@@ -269,11 +275,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class RWViewSet(viewsets.ModelViewSet):
+    # API buat manage RW, include create RT dan reset password RT
     queryset = RW.objects.all()
     serializer_class = RWSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Filter data RW sesuai role user yang akses
         user = self.request.user
         if user.role == 'rw':
             # RW can only see their own profile
@@ -293,6 +301,7 @@ class RWViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def create_rt(self, request):
         """Endpoint untuk RW membuat akun RT baru"""
+        # RW bisa bikin akun RT baru lengkap sama User-nya, password auto-generate
         # Verify user is RW
         if request.user.role != 'rw':
             return Response(
@@ -334,6 +343,7 @@ class RWViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def reset_password(self, request, pk=None):
         """Reset RT password - RW endpoint to generate new password for RT"""
+        # RW bisa reset password RT kalau lupa, return password baru
         # Verify user is RW
         if request.user.role != 'rw':
             return Response(
@@ -378,11 +388,13 @@ class RWViewSet(viewsets.ModelViewSet):
 
 
 class RTViewSet(viewsets.ModelViewSet):
+    # API buat manage RT, RW bisa lihat semua RT-nya, RT cuma lihat profile sendiri
     queryset = RT.objects.all()
     serializer_class = RTSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Filter RT sesuai role: RW lihat semua RT dibawahnya, RT cuma lihat diri sendiri
         user = self.request.user
         if user.role == 'rw':
             # RW can see all RT under them
@@ -403,6 +415,7 @@ class RTViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def create_resident(self, request):
         """Endpoint untuk RT membuat akun Warga baru"""
+        # RT bisa daftarin warga baru, auto-create User sama generate password
         # Verify user is RT
         if request.user.role != 'rt':
             return Response(
@@ -444,6 +457,7 @@ class RTViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def reset_password(self, request, pk=None):
         """Reset Resident password - RT endpoint to generate new password for Resident"""
+        # RT bisa reset password warga kalau lupa, return password baru
         # Verify user is RT
         if request.user.role != 'rt':
             return Response(
@@ -488,11 +502,13 @@ class RTViewSet(viewsets.ModelViewSet):
 
 
 class ResidentViewSet(viewsets.ModelViewSet):
+    # API buat manage data warga, auto-filter berdasarkan role (RW/RT/Warga)
     queryset = Resident.objects.all()
     serializer_class = ResidentSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Filter warga sesuai role: RW lihat semua, RT lihat warga di RT-nya, Warga cuma lihat diri sendiri
         queryset = Resident.objects.all()
         user = self.request.user
         
@@ -531,6 +547,7 @@ class ResidentViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         """Override update to check if user can edit this resident"""
+        # Cek hak akses sebelum update: pastiin RT/RW cuma edit warga di wilayahnya
         user = self.request.user
         resident = serializer.instance
         
@@ -566,11 +583,13 @@ class ResidentViewSet(viewsets.ModelViewSet):
 
 
 class FeedbackViewSet(viewsets.ModelViewSet):
+    # API buat feedback/keluhan warga, RT/RW bisa reply
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Filter feedback sesuai role dan wilayah masing-masing
         user = self.request.user
         queryset = Feedback.objects.all()
         
@@ -604,6 +623,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def reply(self, request, pk=None):
+        # RT/RW bisa kasih balasan ke feedback warga
         feedback = self.get_object()
         serializer = FeedbackReplySerializer(data=request.data)
         
@@ -631,6 +651,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Override create to auto-set user and rt"""
+        # Auto-set user dan RT saat buat feedback baru
         user = self.request.user
         
         # Auto-set RT based on user role if not provided
@@ -659,6 +680,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         """Override update to check if user is the creator"""
+        # Cek apakah user yang edit adalah pembuat feedback (biar ga edit punya orang)
         user = self.request.user
         feedback = serializer.instance
         
@@ -670,12 +692,14 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
+    # API buat pengumuman dari RT/RW, warga bisa lihat pengumuman di wilayahnya
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
         """Override create to auto-set user, rt, and author from current user"""
+        # Auto-set author dan RT saat bikin pengumuman baru
         user = self.request.user
         rt = None
         
@@ -708,6 +732,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         """Override update to maintain user, rt, and author - only creator can edit"""
+        # Cek hak akses: cuma pembuat pengumuman yang bisa edit
         user = self.request.user
         announcement = serializer.instance
         rt = announcement.rt  # Keep existing RT by default
@@ -774,6 +799,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        # Statistik pengumuman: total dan breakdown by priority (high/medium/low)
         total = Announcement.objects.count()
         by_priority = {
             'high': Announcement.objects.filter(priority='high').count(),
@@ -787,12 +813,14 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
 
 class SecurityScheduleViewSet(viewsets.ModelViewSet):
+    # API jadwal jaga keamanan, support 3 tipe: harian, mingguan, bulanan
     queryset = SecuritySchedule.objects.all()
     serializer_class = SecurityScheduleSerializer
     permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
         """Auto-set RW from current user and link personnel by name"""
+        # Auto-set RW dan link ke petugas keamanan by nama
         user = self.request.user
         rw = None
         
@@ -839,6 +867,7 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         """Update schedule and re-link personnel by name"""
+        # Update jadwal dan re-link petugas kalau nama diubah
         rw = serializer.instance.rw
         
         # Link personnel by name if exists
@@ -871,6 +900,7 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
         serializer.save(personnel=personnel)
     
     def get_queryset(self):
+        # Filter jadwal keamanan sesuai wilayah user
         user = self.request.user
         queryset = SecuritySchedule.objects.all()
         
@@ -913,6 +943,7 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        # Statistik jadwal keamanan: total, aktif, dan breakdown per shift
         total = SecuritySchedule.objects.count()
         active = SecuritySchedule.objects.filter(status='aktif').count()
         by_shift = {
@@ -928,12 +959,14 @@ class SecurityScheduleViewSet(viewsets.ModelViewSet):
 
 
 class SecurityPersonnelViewSet(viewsets.ModelViewSet):
+    # API master data petugas keamanan, cuma RW yang bisa create/edit
     queryset = SecurityPersonnel.objects.all()
     serializer_class = SecurityPersonnelSerializer
     permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
         """Auto-set RW from current user"""
+        # Auto-set RW saat RW bikin data petugas baru
         user = self.request.user
         rw = None
         
@@ -949,6 +982,7 @@ class SecurityPersonnelViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Only allow RW to see their own security personnel"""
+        # Filter petugas: RW lihat petugas mereka, RT/Warga bisa lihat tapi read-only
         user = self.request.user
         queryset = SecurityPersonnel.objects.all()
         
