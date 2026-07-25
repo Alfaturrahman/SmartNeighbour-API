@@ -1,256 +1,69 @@
-# SmartNeighbour Backend API
+# SmartNeighbour — Backend API
 
-Backend API untuk sistem manajemen perumahan SmartNeighbour menggunakan Django REST Framework.
+Backend API untuk sistem manajemen perumahan SmartNeighbour, dibangun dengan Django REST Framework.
 
-## � Dokumentasi Lengkap
+## Ringkasan
+- Autentikasi JWT, role-based access, CRUD untuk user/resident/feedback/announcement, dan admin panel.
 
-> **Dokumentasi developer lengkap sudah tersedia!**
-
-- **[📖 DOKUMENTASI_KODE.md](./DOKUMENTASI_KODE.md)** - Dokumentasi teknis lengkap
-  - Arsitektur backend
-  - Database models & relationships
-  - API endpoints detail
-  - **Frontend integration guide** ⭐
-  - Flow diagrams
-  - Best practices
-  
-- **[🚀 QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - API cheat sheet
-  - Quick reference semua endpoints
-  - Request/response examples
-  - Error codes
-  - Frontend usage snippets
-  
-- **[📝 USE_CASE_EXAMPLES.md](./USE_CASE_EXAMPLES.md)** - Tutorial step-by-step
-  - RW membuat RT baru
-  - RT mendaftarkan warga
-  - Warga submit feedback & RT reply
-  - Membuat pengumuman
-  - Jadwal keamanan
-  - Dan lainnya...
-
-- **[🧠 CARA_MEMAHAMI_KONSEP.md](./CARA_MEMAHAMI_KONSEP.md)** - Panduan belajar & pemahaman ⭐ NEW!
-  - **Bukan untuk hafalan**, tapi untuk **pemahaman mendalam**
-  - Strategi belajar step-by-step (5 hari)
-  - Trace flow lengkap dengan penjelasan detail
-  - Self-test & interview simulation
-  - Mental models & analogi real-world
-  - Tips confidence untuk presentasi
-
----
-
-## �🚀 Fitur
-
-- ✅ Autentikasi JWT dengan refresh tokens
-- ✅ CRUD untuk User, Resident, Feedback, Announcement, Security Schedule
-- ✅ Role-based access (Admin, Security, Resident)
-- ✅ Django Admin panel lengkap
-- ✅ PostgreSQL database
-- ✅ CORS configured untuk frontend
-
-## 📋 Prerequisites
-
+## Prerequisites
 - Python 3.10+
-- PostgreSQL 14+
 - pip
+- (Opsional untuk production) PostgreSQL
 
-## 🛠️ Installation
-
-1. **Clone repository**
+## Quickstart (development)
+1. Clone repository
 ```bash
 git clone <repository-url>
-cd smartneighbour_backend
+cd SmartNeighbour-API
 ```
-
-2. **Buat virtual environment**
+2. Virtualenv & install
 ```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-```
-
-3. **Install dependencies**
-```bash
+python -m venv .venv
+.venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 ```
-
-4. **Setup environment variables**
+3. Copy `.env` and edit jika perlu (untuk dev, SQLite digunakan jika `DATABASE_URL` kosong)
 ```bash
-# Copy env.example ke .env
-cp env.example .env
-# Edit .env sesuai konfigurasi Anda
+copy env.example .env
+# edit .env sesuai kebutuhan
 ```
-
-5. **Setup database PostgreSQL**
-```sql
-CREATE DATABASE smartneighbour_db;
-CREATE USER smartneighbour_user WITH PASSWORD 'smartneighbour2026!';
-GRANT ALL PRIVILEGES ON DATABASE smartneighbour_db TO smartneighbour_user;
-```
-
-6. **Run migrations**
+4. Run migrations & create superuser
 ```bash
-python manage.py makemigrations
 python manage.py migrate
-```
-
-7. **Create superuser untuk Django Admin**
-```bash
 python manage.py createsuperuser
 ```
-
-8. **Hash existing passwords (jika ada data lama)**
-```bash
-python manage.py hash_passwords
-```
-
-9. **Run development server**
+5. Run dev server
 ```bash
 python manage.py runserver
 ```
 
-Server akan berjalan di `http://localhost:8000`
+Server: http://127.0.0.1:8000
 
-## 📚 API Endpoints
+## Environment notes
+- Set `SECRET_KEY`, `DEBUG`, dan `DATABASE_URL` via environment in production; do not commit secrets.
 
-### Authentication
-- `POST /api/auth/login/` - Login dan dapatkan JWT token
-- `GET /api/auth/me/` - Get current user info
-- `GET /api/auth/verify/` - Verify JWT token
+## Important endpoints (short)
+- `POST /api/auth/login/` — Login, returns `access` + `refresh` tokens
+- `GET /api/auth/me/` — Current user (requires Bearer token)
+- Standard REST endpoints: `/api/users/`, `/api/residents/`, `/api/feedbacks/`, `/api/announcements/`, `/api/security-schedules/`
 
-### Users
-- `GET /api/users/` - List semua users
-- `POST /api/users/` - Create user baru
-- `GET /api/users/{id}/` - Get user detail
-- `PUT /api/users/{id}/` - Update user
-- `DELETE /api/users/{id}/` - Delete user
-- `GET /api/users/stats/` - User statistics
+## Security checklist (high level)
+- Ensure `DEBUG=False` and a strong `SECRET_KEY` in production.
+- Use HTTPS and secure cookies (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`).
+- Keep `CORS_ALLOWED_ORIGINS` specific (avoid wildcard when credentials are allowed).
+- Use proper permission classes (`IsAuthenticated`) by default and limit `AllowAny` to auth endpoints.
 
-### Residents
-- `GET /api/residents/` - List semua warga
-- `POST /api/residents/` - Create warga baru
-- `GET /api/residents/{id}/` - Get warga detail
-- `PUT /api/residents/{id}/` - Update warga
-- `DELETE /api/residents/{id}/` - Delete warga
-- `GET /api/residents/stats/` - Resident statistics
-
-### Feedbacks
-- `GET /api/feedbacks/` - List semua feedback
-- `POST /api/feedbacks/` - Create feedback baru
-- `GET /api/feedbacks/{id}/` - Get feedback detail
-- `PUT /api/feedbacks/{id}/` - Update feedback
-- `DELETE /api/feedbacks/{id}/` - Delete feedback
-- `POST /api/feedbacks/{id}/reply/` - Reply to feedback
-- `GET /api/feedbacks/stats/` - Feedback statistics
-
-### Announcements
-- `GET /api/announcements/` - List semua pengumuman
-- `POST /api/announcements/` - Create pengumuman baru
-- `GET /api/announcements/{id}/` - Get pengumuman detail
-- `PUT /api/announcements/{id}/` - Update pengumuman
-- `DELETE /api/announcements/{id}/` - Delete pengumuman
-- `GET /api/announcements/stats/` - Announcement statistics
-
-### Security Schedules
-- `GET /api/security-schedules/` - List semua jadwal
-- `POST /api/security-schedules/` - Create jadwal baru
-- `GET /api/security-schedules/{id}/` - Get jadwal detail
-- `PUT /api/security-schedules/{id}/` - Update jadwal
-- `DELETE /api/security-schedules/{id}/` - Delete jadwal
-- `GET /api/security-schedules/stats/` - Schedule statistics
-
-## 🔐 Authentication
-
-Gunakan JWT token untuk autentikasi:
-
+## Testing
 ```bash
-# Login untuk mendapatkan token
-POST /api/auth/login/
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-
-# Response
-{
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "user": {...}
-}
-
-# Gunakan token di header untuk request lain
-Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
-```
-
-## 🔧 Django Admin
-
-Akses Django Admin panel di `http://localhost:8000/admin/`
-
-Features:
-- Manage semua models (User, Resident, Feedback, dll)
-- Search & filter functionality
-- Custom fieldsets untuk better UX
-- Auto password hashing untuk User model
-
-## 📝 Environment Variables
-
-Lihat `env.example` untuk daftar lengkap environment variables yang diperlukan.
-
-## 🧪 Testing
-
-```bash
-# Run tests
 python manage.py test
-
-# Run dengan coverage
-coverage run --source='.' manage.py test
-coverage report
 ```
 
-## 📦 Project Structure
+## Docker (optional)
+Tidak ada Dockerfile di repo saat ini — disarankan menambahkan `Dockerfile` untuk backend dan `docker-compose.yml` untuk dev reproducibility.
 
-```
-smartneighbour_backend/
-├── core/                       # Main app
-│   ├── models.py              # Database models
-│   ├── views.py               # API views
-│   ├── serializers.py         # DRF serializers
-│   ├── urls.py                # URL routing
-│   ├── admin.py               # Django admin config
-│   └── management/
-│       └── commands/
-│           └── hash_passwords.py
-├── smartneighbour_api/        # Project settings
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── manage.py
-├── requirements.txt
-└── env.example
-```
+## Contributing & License
+- Kontributor: Rahman
+- License: MIT
 
-## 🚀 Deployment
-
-### Production Checklist
-
-1. Set `DEBUG=False` di `.env`
-2. Generate strong `SECRET_KEY`
-3. Update `ALLOWED_HOSTS` dengan domain production
-4. Setup production database (PostgreSQL)
-5. Collect static files: `python manage.py collectstatic`
-6. Use production server (gunicorn): `gunicorn smartneighbour_api.wsgi:application`
-7. Setup reverse proxy (nginx)
-8. Enable HTTPS/SSL
-
-## 📄 License
-
-MIT License
-
-## 👥 Contributors
-
-- Rahman
-
-## 🐛 Bug Reports
-
-Laporkan bug melalui issue tracker atau hubungi tim development.
+---
+Untuk dokumentasi teknis lebih lengkap dan cheat-sheet endpoint lihat file dokumentasi lain di repo.
